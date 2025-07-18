@@ -2,9 +2,8 @@ import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
-# SonarQube will catch these issues:
-password = "hardcoded_password_123"  # Security: Hardcoded credentials
-api_key = "sk-1234567890abcdef"      # Security: Hardcoded API key
+# SonarQube will catch these issues:zxfghjkjhgfzxcvb
+password = "hardcoded_password_123"  # Security: Hardcoded credentialsapi_key = "sk-1234567890abcdef"      # Security: Hardcoded API key
 
 def login_user(username, pwd):
     # Code smell: Unused variable
