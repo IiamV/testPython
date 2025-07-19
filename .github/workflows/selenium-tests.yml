@@ -17,14 +17,14 @@ jobs:
     strategy:
       matrix:
         browser: [chrome, firefox]
-        python-version: [3.9, 3.10, 3.11]
+        python-version: ['3.9', '3.10', '3.11']
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
     
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     
@@ -36,13 +36,13 @@ jobs:
     
     - name: Install Chrome
       if: matrix.browser == 'chrome'
-      uses: browser-actions/setup-chrome@latest
+      uses: browser-actions/setup-chrome@v1
       with:
         chrome-version: stable
     
     - name: Install Firefox
       if: matrix.browser == 'firefox'
-      uses: browser-actions/setup-firefox@latest
+      uses: browser-actions/setup-firefox@v1
       with:
         firefox-version: latest
     
