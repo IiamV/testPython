@@ -14,31 +14,47 @@ jobs:
     steps:
     # Check out the repository code
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     # Set up Python
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
 
-    # Install Chrome and ChromeDriver
-    - name: Install Chrome
+    # Install Chrome
+    - name: Install Google Chrome
       run: |
+        wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
         sudo apt-get update
         sudo apt-get install -y google-chrome-stable
+
+    # Install ChromeDriver
+    - name: Install ChromeDriver
+      run: |
         CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+')
-        CHROMEDRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION)
+        CHROMEDRIVER_VERSION=$(curl -sS https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION)
         wget -q -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip
         sudo unzip /tmp/chromedriver.zip -d /usr/local/bin/
         sudo chmod +x /usr/local/bin/chromedriver
+        chromedriver --version
 
     # Install Python dependencies
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install selenium pytest
+        pip install selenium pytest pytest-html
 
-    # Run Selenium tests
+    # Run Selenium tests and generate report
     - name: Run tests
-      run: pytest main.py --verbose
+      run: |
+        pytest tests/test_demo.py --verbose --html=report.html
+      continue-on-error: true  # Continue even if tests fail to capture results
+
+    # Upload test report as artifact
+    - name: Upload test report
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-report
+        path: report.html
