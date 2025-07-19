@@ -1,60 +1,78 @@
-# File: .github/workflows/selenium-tests.yml
-name: Selenium Tests Demo
+# .github/workflows/selenium-tests.yml
+name: Selenium Tests
 
 on:
   push:
-    branches: [main]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
 
 jobs:
-  test:
+  selenium-tests:
     runs-on: ubuntu-latest
-
+    
+    strategy:
+      matrix:
+        browser: [chrome, firefox]
+        python-version: [3.9, 3.10, 3.11]
+    
     steps:
-    # Check out the repository code
     - name: Checkout code
       uses: actions/checkout@v4
-
-    # Set up Python
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
-
-    # Install Chrome
-    - name: Install Google Chrome
-      run: |
-        wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
-
-    # Install ChromeDriver
-    - name: Install ChromeDriver
-      run: |
-        CHROME_VERSION=$(google-chrome --version | grep -oP '\d+\.\d+\.\d+')
-        CHROMEDRIVER_VERSION=$(curl -sS https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION)
-        wget -q -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip
-        sudo unzip /tmp/chromedriver.zip -d /usr/local/bin/
-        sudo chmod +x /usr/local/bin/chromedriver
-        chromedriver --version
-
-    # Install Python dependencies
+        python-version: ${{ matrix.python-version }}
+    
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install selenium pytest pytest-html
-
-    # Run Selenium tests and generate report
-    - name: Run tests
-      run: |
-        pytest tests/test_demo.py --verbose --html=report.html
-      continue-on-error: true  # Continue even if tests fail to capture results
-
-    # Upload test report as artifact
-    - name: Upload test report
-      uses: actions/upload-artifact@v4
+        pip install selenium pytest pytest-html pytest-xvfb webdriver-manager requests
+        pip install -r requirements.txt
+    
+    - name: Install Chrome
+      if: matrix.browser == 'chrome'
+      uses: browser-actions/setup-chrome@latest
       with:
-        name: test-report
-        path: report.html
+        chrome-version: stable
+    
+    - name: Install Firefox
+      if: matrix.browser == 'firefox'
+      uses: browser-actions/setup-firefox@latest
+      with:
+        firefox-version: latest
+    
+    - name: Start Xvfb (Virtual Display)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+        sleep 3
+    
+    - name: Run Selenium Tests
+      env:
+        BROWSER: ${{ matrix.browser }}
+        DISPLAY: :99
+      run: |
+        pytest tests/ -v --html=report.html --self-contained-html --tb=short
+    
+    - name: Upload Test Results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ matrix.browser }}-py${{ matrix.python-version }}
+        path: |
+          report.html
+          screenshots/
+    
+    - name: Upload Screenshots on Failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: screenshots-failure-${{ matrix.browser }}-py${{ matrix.python-version }}
+        path: screenshots/
